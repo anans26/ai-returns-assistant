@@ -17,23 +17,68 @@ def get_orders():
 
     response = requests.get(url, headers=headers)
 
-    print("Status:", response.status_code)
-
     if response.status_code == 200:
         data = response.json()
-        print(f"Orders Found: {len(data['orders'])}")
+        return data["orders"]
 
-        if data["orders"]:
-            order = data["orders"][0]
+    print("Error:", response.text)
+    return []
 
-            print("\nFirst Order:")
-            print("Order ID:", order["id"])
-            print("Email:", order.get("email"))
-            print("Created At:", order["created_at"])
 
-    else:
-        print(response.text)
+def get_order_by_id(order_id):
+    orders = get_orders()
+
+    for order in orders:
+        if str(order["id"]) == str(order_id):
+            return order
+
+    return None
+
+
+def verify_order(order_id, email):
+    order = get_order_by_id(order_id)
+
+    if order is None:
+        return False
+
+    return order.get("email", "").lower() == email.lower()
+
+
+def get_order_products(order_id):
+    order = get_order_by_id(order_id)
+
+    if order is None:
+        return []
+
+    print("\nNumber of line items:", len(order["line_items"]))
+
+    products = []
+
+    for item in order["line_items"]:
+        products.append({
+            "product_id": item["product_id"],
+            "title": item["title"],
+            "quantity": item["quantity"]
+        })
+
+    return products
 
 
 if __name__ == "__main__":
-    get_orders()
+    order_id = input("Enter Order ID: ")
+    email = input("Enter Email: ")
+
+    if verify_order(order_id, email):
+        print("\nOrder Verified")
+
+        products = get_order_products(order_id)
+
+        print("\nProducts in Order:")
+        for index, product in enumerate(products, start=1):
+            print(
+                f"{index}. {product['title']} "
+                f"(Qty: {product['quantity']})"
+            )
+
+    else:
+        print("\nVerification Failed")
