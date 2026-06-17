@@ -44,3 +44,14 @@ CREATE INDEX IF NOT EXISTS idx_returns_order_id ON returns(order_id);
 CREATE INDEX IF NOT EXISTS idx_returns_customer_email ON returns(customer_email);
 CREATE INDEX IF NOT EXISTS idx_return_items_return_id ON return_items(return_id);
 CREATE INDEX IF NOT EXISTS idx_return_items_variant_id ON return_items(variant_id);
+
+-- 5. Return Images Table
+-- Stores file paths for customer-uploaded images associated with a return request.
+CREATE TABLE IF NOT EXISTS return_images (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    return_id   UUID NOT NULL REFERENCES returns(id) ON DELETE CASCADE,
+    image_path  TEXT NOT NULL,
+    uploaded_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_return_images_return_id ON return_images(return_id);

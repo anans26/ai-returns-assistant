@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply text-gray-900 antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer components {
+  .radio-card {
+    @apply relative flex cursor-pointer rounded-lg border p-4 focus:outline-none transition-colors;
+  }
+
+  .radio-card-selected {
+    @apply border-brand-500 bg-brand-50;
+  }
+
+  .radio-card-unselected {
+    @apply border-gray-200 bg-white hover:border-gray-300;
+  }
+}

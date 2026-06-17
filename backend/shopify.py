@@ -1,3 +1,16 @@
+"""
+shopify.py
+
+Main entry point for the Shopify Returns Agent CLI.
+Responsibilities:
+  - Fetch and verify Shopify orders via the Admin REST API (read-only)
+  - Check return eligibility against configurable rules
+  - Collect return details via interactive prompts
+  - Persist validated return requests to PostgreSQL via database.py
+
+Usage:
+    python shopify.py
+"""
 import os
 import requests
 from dotenv import load_dotenv
@@ -12,6 +25,8 @@ API_VERSION = "2025-01"
 
 
 def get_orders():
+    # NOTE: Unused — reserved for future admin tooling.
+    # Fetches up to 250 orders (Shopify default limit) from the store.
     url = f"https://{STORE}/admin/api/{API_VERSION}/orders.json"
 
     headers = {
@@ -54,6 +69,10 @@ def get_order_by_id(order_id):
 
 
 def verify_order(order, email):
+    """
+    Return True if the order's email matches the provided email (case-insensitive).
+    Returns False if the order is None or the email does not match.
+    """
     if order is None:
         return False
 
@@ -61,6 +80,12 @@ def verify_order(order, email):
 
 
 def get_order_products(order):
+    """
+    Extract a list of returnable products from an order's line_items.
+    Each entry contains: line_item_id, product_id, variant_id,
+    variant_title, title, and quantity.
+    Returns an empty list if the order is None or has no line items.
+    """
     if order is None:
         return []
 
@@ -96,6 +121,9 @@ def check_return_eligibility(order):
             return_window = 30
         else:
             return_window = int(rule_val)
+            if return_window <= 0:
+                print("Warning: return_window_days is set to a non-positive value. Defaulting to 30 days.")
+                return_window = 30
 
         print("\nOrder Timestamp:", order_date)
         print("Current Time (UTC):", today)
@@ -145,6 +173,16 @@ if __name__ == "__main__":
 
     if not order_id or not email:
         print("Error: Order ID and Email are required.")
+        exit(1)
+
+    # Shopify order IDs are numeric — catch common mistakes early
+    if not order_id.isdigit():
+        print("Error: Order ID must be a numeric Shopify ID (e.g., 5678901234567).")
+        exit(1)
+
+    # Basic email format check before hitting the API
+    if "@" not in email or "." not in email:
+        print("Error: Please enter a valid email address.")
         exit(1)
 
     # Fetch the order once
@@ -221,8 +259,8 @@ if __name__ == "__main__":
                 print(f"Return Tracking ID: {return_id}")
                 print(f"Order: {order.get('name', order_id)}")
                 print(f"Item: {chosen_product['title']} (Qty: {return_qty})")
-                print(f"Resolution: {return_type.upper()}")
-                print(f"Reason: {return_reason.replace('_', ' ').capitalize()}")
+                print(f"Resolution: {return_type.replace('_', ' ').title()}")
+                print(f"Reason: {return_reason.replace('_', ' ').title()}")
                 print("=============================================")
             except Exception as e:
                 print(f"\nDatabase Error: Failed to save return request. Please try again later.")
