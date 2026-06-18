@@ -27,6 +27,7 @@ const RETURN_REASONS = [
   { value: 'damaged_product', label: 'Damaged Product', requiresImages: true },
   { value: 'wrong_size', label: 'Wrong Size', requiresImages: false },
   { value: 'wrong_item_received', label: 'Wrong Item Received', requiresImages: true },
+  { value: 'defective_product', label: 'Defective Product', requiresImages: true },
   { value: 'changed_mind', label: 'Changed Mind', requiresImages: false },
   { value: 'other', label: 'Other', requiresImages: false },
 ]

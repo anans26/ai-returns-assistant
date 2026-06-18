@@ -1,3 +1,4 @@
+import { jsPDF } from 'jspdf'
 import Button from '../components/Button'
 
 const TYPE_LABELS = {
@@ -10,6 +11,7 @@ const REASON_LABELS = {
   damaged_product: 'Damaged Product',
   wrong_size: 'Wrong Size',
   wrong_item_received: 'Wrong Item Received',
+  defective_product: 'Defective Product',
   changed_mind: 'Changed Mind',
   other: 'Other',
 }
@@ -30,6 +32,132 @@ function SummaryRow({ label, value }) {
       <span className="text-sm font-medium text-gray-900 text-right">{value}</span>
     </div>
   )
+}
+
+function downloadLabel({ shortId, order, selectedItems, return_type, return_reason }) {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+  const pageW = doc.internal.pageSize.getWidth()
+  const margin = 20
+  let y = 20
+
+  const line = (x1, x2, yPos) => doc.line(x1, yPos, x2, yPos)
+  const text = (str, x, yPos, opts) => { doc.text(str, x, yPos, opts); return yPos }
+
+  // Header bar
+  doc.setFillColor(46, 93, 75)
+  doc.rect(0, 0, pageW, 14, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'bold')
+  text('RETURN SHIPPING LABEL', margin, 9.5)
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  text(`Ref #${shortId}`, pageW - margin, 9.5, { align: 'right' })
+
+  y = 28
+  doc.setTextColor(30, 30, 30)
+
+  // Reference box
+  doc.setFillColor(240, 247, 244)
+  doc.roundedRect(margin, y, pageW - margin * 2, 18, 2, 2, 'F')
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(80, 80, 80)
+  text('Reference ID', margin + 5, y + 7)
+  doc.setFontSize(16)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(46, 93, 75)
+  text(`#${shortId}`, margin + 5, y + 14)
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(80, 80, 80)
+  text('Status: Pending Review', pageW - margin - 5, y + 7, { align: 'right' })
+  doc.setTextColor(30, 30, 30)
+  y += 26
+
+  // Order details section
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(100, 100, 100)
+  text('ORDER DETAILS', margin, y)
+  y += 5
+  doc.setDrawColor(220, 220, 220)
+  line(margin, pageW - margin, y)
+  y += 6
+
+  const row = (label, value) => {
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(120, 120, 120)
+    doc.setFontSize(9)
+    text(label, margin, y)
+    doc.setTextColor(30, 30, 30)
+    doc.setFont('helvetica', 'bold')
+    text(value, margin + 45, y)
+    y += 7
+  }
+
+  row('Order', order.name)
+  row('Order Date', formatDate(order.created_at))
+  row('Email', order.email)
+  row('Return Type', TYPE_LABELS[return_type] ?? return_type)
+  row('Reason', REASON_LABELS[return_reason] ?? return_reason)
+
+  y += 4
+
+  // Items section
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(100, 100, 100)
+  text('ITEMS RETURNING', margin, y)
+  y += 5
+  line(margin, pageW - margin, y)
+  y += 6
+
+  selectedItems.forEach((item) => {
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(30, 30, 30)
+    doc.setFontSize(9)
+    text(item.title, margin, y)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(100, 100, 100)
+    const detail = [item.variant_title, `Qty: ${item.returnQty}`].filter(Boolean).join('  ·  ')
+    text(detail, margin, y + 5)
+    y += 13
+  })
+
+  y += 4
+
+  // Instructions
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(100, 100, 100)
+  text('INSTRUCTIONS', margin, y)
+  y += 5
+  line(margin, pageW - margin, y)
+  y += 6
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(60, 60, 60)
+  doc.setFontSize(9)
+  const instructions = [
+    '1. Pack the item(s) securely in the original packaging if available.',
+    '2. Attach this label to the outside of the package.',
+    '3. Drop off at your nearest courier location.',
+    '4. Our team will review and contact you within 2–3 business days.',
+  ]
+  instructions.forEach((line_) => {
+    text(line_, margin, y)
+    y += 6
+  })
+
+  // Footer
+  doc.setDrawColor(200, 200, 200)
+  line(margin, pageW - margin, 275)
+  doc.setFontSize(8)
+  doc.setTextColor(160, 160, 160)
+  doc.setFont('helvetica', 'normal')
+  text(`Generated ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}  ·  Keep this label for your records`, pageW / 2, 280, { align: 'center' })
+
+  doc.save(`return-label-${shortId}.pdf`)
 }
 
 export default function Confirmation({ orderData, selectedItems, returnDetails, onStartNew }) {
@@ -131,7 +259,17 @@ export default function Confirmation({ orderData, selectedItems, returnDetails, 
       )}
 
       {/* CTA */}
-      <div className="flex justify-center pt-2">
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+        <Button
+          variant="secondary"
+          size="lg"
+          onClick={() => downloadLabel({ shortId, order, selectedItems, return_type, return_reason })}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          Download Shipping Label
+        </Button>
         <Button onClick={onStartNew} size="lg">
           Start New Return
         </Button>

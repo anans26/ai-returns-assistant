@@ -18,7 +18,7 @@ function validateForm(orderId, email) {
   return errors
 }
 
-export default function OrderVerification({ onSuccess }) {
+export default function OrderVerification({ onSuccess, onOrderIdChange, onEmailChange }) {
   const [orderId, setOrderId] = useState('')
   const [email, setEmail] = useState('')
   const [errors, setErrors] = useState({})
@@ -108,6 +108,7 @@ export default function OrderVerification({ onSuccess }) {
               value={orderId}
               onChange={(e) => {
                 setOrderId(e.target.value)
+                onOrderIdChange?.(e.target.value)
                 setErrors((prev) => ({ ...prev, orderId: undefined }))
               }}
               error={errors.orderId}
@@ -128,6 +129,7 @@ export default function OrderVerification({ onSuccess }) {
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value)
+                onEmailChange?.(e.target.value)
                 setErrors((prev) => ({ ...prev, email: undefined }))
               }}
               error={errors.email}

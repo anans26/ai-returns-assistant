@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import TopNav from './components/TopNav'
 import StepSidebar from './components/StepSidebar'
+import ModeToggle from './components/ModeToggle'
+import AssistantPanel from './components/AssistantPanel'
 import OrderVerification from './screens/OrderVerification'
 import ProductSelection from './screens/ProductSelection'
 import ReturnDetails from './screens/ReturnDetails'
@@ -8,12 +10,16 @@ import Confirmation from './screens/Confirmation'
 
 export default function App() {
   const [step, setStep] = useState(1)
-  // { order: {id, name, email, created_at}, eligible, days_since_order, return_window_days, products: [...] }
   const [orderData, setOrderData] = useState(null)
-  // [{ line_item_id, product_id, variant_id, title, variant_title, quantity, price, returnQty }]
   const [selectedItems, setSelectedItems] = useState([])
-  // { return_type, return_reason, images: File[], return_id, uploaded_count }
   const [returnDetails, setReturnDetails] = useState(null)
+
+  const [mode, setMode] = useState('portal')
+  const [assistantOpen, setAssistantOpen] = useState(false)
+
+  // Track partial step-1 inputs so assistant can pre-fill context
+  const [portalOrderId, setPortalOrderId] = useState('')
+  const [portalEmail, setPortalEmail] = useState('')
 
   const handleOrderVerified = (data) => {
     setOrderData(data)
@@ -39,6 +45,33 @@ export default function App() {
     setReturnDetails(null)
   }
 
+  const handleModeChange = (next) => {
+    setMode(next)
+    setAssistantOpen(next === 'assistant')
+  }
+
+  const handleAssistantClose = () => {
+    setAssistantOpen(false)
+    setMode('portal')
+  }
+
+  // Build shared context object passed into the assistant
+  const portalContext = (() => {
+    if (orderData) {
+      return {
+        order_data: orderData,
+        selected_items: selectedItems.length > 0 ? selectedItems : undefined,
+      }
+    }
+    if (portalOrderId || portalEmail) {
+      return {
+        order_id: portalOrderId || undefined,
+        email: portalEmail || undefined,
+      }
+    }
+    return null
+  })()
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <TopNav />
@@ -46,7 +79,11 @@ export default function App() {
         <StepSidebar currentStep={step} onCancel={step < 4 ? handleCancel : undefined} />
         <main className="flex-1 overflow-auto">
           {step === 1 && (
-            <OrderVerification onSuccess={handleOrderVerified} />
+            <OrderVerification
+              onSuccess={handleOrderVerified}
+              onOrderIdChange={setPortalOrderId}
+              onEmailChange={setPortalEmail}
+            />
           )}
           {step === 2 && orderData && (
             <ProductSelection
@@ -73,6 +110,27 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {!assistantOpen && <ModeToggle mode={mode} onChange={handleModeChange} />}
+
+      <AssistantPanel
+        open={assistantOpen}
+        onClose={handleAssistantClose}
+        portalContext={portalContext}
+        onReturnCompleted={(result) => {
+          if (result && orderData) {
+            setReturnDetails({
+              return_id: result.return_id,
+              return_type: 'refund',
+              return_reason: 'other',
+              images: [],
+              uploaded_count: 0,
+            })
+            setStep(4)
+            handleAssistantClose()
+          }
+        }}
+      />
     </div>
   )
 }
